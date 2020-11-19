@@ -58,6 +58,45 @@ generate_requirements_dev() {
     fi
 }
 
+SUCCESS=0
+FAIL=1
+SKIP=2
+
+check_command() {
+  #1 command
+  echo -n "Checking command $1... "
+  ( hash $1 2>/dev/null ) ||\
+    (echo "ERROR: Command $1 is not available" 1>&2 &&\
+    return $FAIL )
+}
+
+failed() {
+  echo "Failed"
+  echo "---> Execution failed:"
+  cat .err
+  rm .err
+  exit 1
+}
+
+skipped() {
+  echo "Skipped"
+  rm .err
+}
+
+success() {
+  echo "Ok"
+  rm .err
+}
+
+check_task() {
+  "$@" 2> .err
+  result_proc=$?
+  (test "$result_proc" -eq $SUCCESS && success )\
+    || (test "$result_proc" -eq $SKIP && skipped )\
+    || failed;
+}
+
+
 # Read input
 make_dev=0
 while getopts "hd" opt; do
@@ -84,6 +123,10 @@ if [[ $# -ne 2 ]]; then
 fi
 piplock_path=$1
 requirements_path=$2
+
+check_task check_command jq
+check_task check_command diff
+
 
 generate_requirements $piplock_path $requirements_path
 
