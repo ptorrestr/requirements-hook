@@ -4,7 +4,7 @@
 
 show_help() {
     cat << EOF
-Usage: ${0##*/} [-h] [-d] PIPLOCK_FILE REQUIREMENTS_FILE
+Usage: ${0##*/} [-h] [-d] PIPLOCK_FILE
 Generate the requirements file from the Pipfile.lock file
 
   -h                        Display this help
@@ -117,12 +117,13 @@ done
 shift "$((OPTIND-1))"   # Discard the options and sentinel --
 
 # handle non-option arguments
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 1 ]]; then
     show_help
     exit 1
 fi
 piplock_path=$1
-requirements_path=$2
+requirements_path="$(dirname "$piplock_path")"
+requirements_path="$requirements_path/requirements.txt"
 
 check_task check_command jq
 check_task check_command diff
