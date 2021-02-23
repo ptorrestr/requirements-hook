@@ -21,8 +21,15 @@ generate_requirements() {
     # check default environment
     jq -r '.default
         | to_entries[]
+        | select(.value.version != null)
         | .key + .value.version' \
-    $PIPLOCK_FILE > $test_file
+        $PIPLOCK_FILE > $test_file
+    # check for git+ssh and add them to the end
+    jq -r '.default
+        | to_entries[]
+        | select(.value.git != null)
+        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
+        $PIPLOCK_FILE >> $test_file
     if diff $REQUIREMENTS_FILE $test_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_FILE is updated"
     else
@@ -43,12 +50,27 @@ generate_requirements_dev() {
     # check develop environment. We actually need to check both!
     jq -r '.default
         | to_entries[]
+        | select(.value.version != null)
         | .key + .value.version' \
-    $PIPLOCK_FILE > $test_file_dev
+        $PIPLOCK_FILE > $test_file_dev
+    # check for git+ssh and add them to the end
+    jq -r '.default
+        | to_entries[]
+        | select(.value.git != null)
+        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
+        $PIPLOCK_FILE >> $test_file_dev
+    # now, develop
     jq -r '.develop
         | to_entries[]
+        | select(.value.version != null)
         | .key + .value.version' \
-    $PIPLOCK_FILE >> $test_file_dev
+        $PIPLOCK_FILE >> $test_file_dev
+    # check for develop git+ssh
+    jq -r '.develop
+        | to_entries[]
+        | select(.value.git != null)
+        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
+        $PIPLOCK_FILE >> $test_file_dev
     if diff $REQUIREMENTS_DEV_FILE $test_file_dev > /dev/null 2>&1; then
         echo "$REQUIREMENTS_DEV_FILE is updated"
     else
