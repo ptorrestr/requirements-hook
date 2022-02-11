@@ -18,7 +18,7 @@ get_deps_base() {
     ENV=$3          #3 Environment
     jq -r --arg v "$ENV" '.[$v]
         | to_entries[]
-        | select(.value.version != null)
+        | select(.value.version != null and .value.file == null )
         | .key + .value.version' \
         $PIPLOCK_FILE > $OUTPUT_FILE
 }
@@ -34,6 +34,17 @@ get_deps_git() {
         $PIPLOCK_FILE > $OUTPUT_FILE
 }
 
+get_deps_file() {
+    PIPLOCK_FILE=$1 #1 Pipfile.lock
+    OUTPUT_FILE=$2  #2 Output file
+    ENV=$3          #3 Environment
+    jq -r --arg v "$ENV" '.[$v]
+        | to_entries[]
+        | select(.value.file != null)
+        | .key + " @ " + .value.file' \
+        $PIPLOCK_FILE > $OUTPUT_FILE
+}
+
 generate_requirements() {
     #1 Pipfile.lock
     #2 requirements.txt
@@ -45,9 +56,12 @@ generate_requirements() {
     # check for git+ssh and add them to the end
     test_file_2=$(mktemp)
     get_deps_git $PIPLOCK_FILE $test_file_2 default
+    # check for git+ssh and add them to the end
+    test_file_3=$(mktemp)
+    get_deps_file $PIPLOCK_FILE $test_file_3 default
     # create new version
     new_requirements_file=$(mktemp)
-    cat $test_file_1 $test_file_2 | sort > $new_requirements_file
+    cat $test_file_1 $test_file_2 $test_file_3 | sort > $new_requirements_file
     # validate diff
     if diff $REQUIREMENTS_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_FILE is updated"
@@ -73,15 +87,22 @@ generate_requirements_dev() {
     # check for git+ssh and add them to the end
     test_file_2=$(mktemp)
     get_deps_git $PIPLOCK_FILE $test_file_2 default
-    # now, develop
+    # check for file
     test_file_3=$(mktemp)
-    get_deps_base $PIPLOCK_FILE $test_file_3 develop
-    # check for develop git+ssh
+    get_deps_file $PIPLOCK_FILE $test_file_3 default
+    # now, develop
     test_file_4=$(mktemp)
-    get_deps_git $PIPLOCK_FILE $test_file_4 develop
+    get_deps_base $PIPLOCK_FILE $test_file_4 develop
+    # check for develop git+ssh
+    test_file_5=$(mktemp)
+    get_deps_git $PIPLOCK_FILE $test_file_5 develop
+    # check for file
+    test_file_6=$(mktemp)
+    get_deps_file $PIPLOCK_FILE $test_file_6 develop
     # create new version
     new_requirements_file=$(mktemp)
-    cat $test_file_1 $test_file_2 $test_file_3 $test_file_4 | sort > $new_requirements_file
+    cat $test_file_1 $test_file_2 $test_file_3 $test_file_4 $test_file_5 $test_file_6 \
+        | sort > $new_requirements_file
     if diff $REQUIREMENTS_DEV_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_DEV_FILE is updated"
     else
