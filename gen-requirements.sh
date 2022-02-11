@@ -61,7 +61,7 @@ generate_requirements() {
     get_deps_file $PIPLOCK_FILE $test_file_3 default
     # create new version
     new_requirements_file=$(mktemp)
-    cat $test_file_1 $test_file_2 $test_file_3 | sort > $new_requirements_file
+    cat $test_file_1 $test_file_2 $test_file_3 | sort -u > $new_requirements_file
     # validate diff
     if diff $REQUIREMENTS_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_FILE is updated"
@@ -102,7 +102,7 @@ generate_requirements_dev() {
     # create new version
     new_requirements_file=$(mktemp)
     cat $test_file_1 $test_file_2 $test_file_3 $test_file_4 $test_file_5 $test_file_6 \
-        | sort > $new_requirements_file
+        | sort -u > $new_requirements_file
     if diff $REQUIREMENTS_DEV_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_DEV_FILE is updated"
     else
