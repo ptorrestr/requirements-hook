@@ -12,29 +12,48 @@ Generate the requirements file from the Pipfile.lock file
 EOF
 }
 
+get_deps_base() {
+    PIPLOCK_FILE=$1 #1 Pipfile.lock
+    OUTPUT_FILE=$2  #2 Output file
+    ENV=$3          #3 Environment
+    jq -r --arg v "$ENV" '.[$v]
+        | to_entries[]
+        | select(.value.version != null)
+        | .key + .value.version' \
+        $PIPLOCK_FILE > $OUTPUT_FILE
+}
+
+get_deps_git() {
+    PIPLOCK_FILE=$1 #1 Pipfile.lock
+    OUTPUT_FILE=$2  #2 Output file
+    ENV=$3          #3 Environment
+    jq -r --arg v "$ENV" '.[$v]
+        | to_entries[]
+        | select(.value.git != null)
+        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
+        $PIPLOCK_FILE > $OUTPUT_FILE
+}
+
 generate_requirements() {
     #1 Pipfile.lock
     #2 requirements.txt
     PIPLOCK_FILE=$1
     REQUIREMENTS_FILE=$2
-    test_file=$(mktemp)
     # check default environment
-    jq -r '.default
-        | to_entries[]
-        | select(.value.version != null)
-        | .key + .value.version' \
-        $PIPLOCK_FILE > $test_file
+    test_file_1=$(mktemp)
+    get_deps_base $PIPLOCK_FILE $test_file_1 default
     # check for git+ssh and add them to the end
-    jq -r '.default
-        | to_entries[]
-        | select(.value.git != null)
-        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
-        $PIPLOCK_FILE >> $test_file
-    if diff $REQUIREMENTS_FILE $test_file > /dev/null 2>&1; then
+    test_file_2=$(mktemp)
+    get_deps_git $PIPLOCK_FILE $test_file_2 default
+    # create new version
+    new_requirements_file=$(mktemp)
+    cat $test_file_1 $test_file_2 | sort > $new_requirements_file
+    # validate diff
+    if diff $REQUIREMENTS_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_FILE is updated"
     else
         echo "$REQUIREMENTS_FILE needs to be updated"
-        cp $test_file $REQUIREMENTS_FILE
+        cp $new_requirements_file $REQUIREMENTS_FILE
         REQUIREMENTS_FILE_NEEDS_UPDATE=1
     fi
 }
@@ -48,34 +67,26 @@ generate_requirements_dev() {
     REQUIREMENTS_DEV_FILE=$3
     test_file_dev=$(mktemp)
     # check develop environment. We actually need to check both!
-    jq -r '.default
-        | to_entries[]
-        | select(.value.version != null)
-        | .key + .value.version' \
-        $PIPLOCK_FILE > $test_file_dev
+    # check default environment
+    test_file_1=$(mktemp)
+    get_deps_base $PIPLOCK_FILE $test_file_1 default
     # check for git+ssh and add them to the end
-    jq -r '.default
-        | to_entries[]
-        | select(.value.git != null)
-        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
-        $PIPLOCK_FILE >> $test_file_dev
+    test_file_2=$(mktemp)
+    get_deps_git $PIPLOCK_FILE $test_file_2 default
     # now, develop
-    jq -r '.develop
-        | to_entries[]
-        | select(.value.version != null)
-        | .key + .value.version' \
-        $PIPLOCK_FILE >> $test_file_dev
+    test_file_3=$(mktemp)
+    get_deps_base $PIPLOCK_FILE $test_file_3 develop
     # check for develop git+ssh
-    jq -r '.develop
-        | to_entries[]
-        | select(.value.git != null)
-        | "-e git+"+.value.git+"@"+.value.ref+"#egg="+.key' \
-        $PIPLOCK_FILE >> $test_file_dev
-    if diff $REQUIREMENTS_DEV_FILE $test_file_dev > /dev/null 2>&1; then
+    test_file_4=$(mktemp)
+    get_deps_git $PIPLOCK_FILE $test_file_4 develop
+    # create new version
+    new_requirements_file=$(mktemp)
+    cat $test_file_1 $test_file_2 $test_file_3 $test_file_4 | sort > $new_requirements_file
+    if diff $REQUIREMENTS_DEV_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_DEV_FILE is updated"
     else
         echo "$REQUIREMENTS_DEV_FILE needs to be updated"
-        cp $test_file_dev $REQUIREMENTS_DEV_FILE
+        cp $new_requirements_file $REQUIREMENTS_DEV_FILE
         REQUIREMENTS_DEV_FILE_NEEDS_UPDATE=1
     fi
 }
