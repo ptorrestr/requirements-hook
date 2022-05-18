@@ -14,7 +14,7 @@ EOF
 
 show_unknown_format() {
     cat << EOF
-Unknown input file format. Currently only "Pipenv.lock" and "pyproject.toml" are
+Unknown input file format. Currently, only "Pipenv.lock" and "poetry.lock" are
 supported.
 EOF
 }
@@ -23,7 +23,18 @@ is_pipenv() {
     # Check if the input file is a Pipfile.lock
     #1 Input file
     FILE=$1
-    if [ "${FILE##*.}" = "lock" ]; then
+    if [ "${FILE##*/}" = "Pipfile.lock" ]; then
+        true
+    else
+        false
+    fi
+}
+
+is_poetry() {
+    # Check if the input file is a poetry.lock file
+    #1 Input file
+    FILE=$1
+    if [ "${FILE##*/}" = "poetry.lock" ]; then
         true
     else
         false
@@ -95,6 +106,25 @@ generate_requirements_pipenv() {
     cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE    
 }
 
+generate_requirements_poetry() {
+    # Generate requirements using poetry
+    #1 poetry.lock file
+    #2 temporal requirments.txt file
+    #3 type (either default or develop)
+    LOCK_FILE=$1
+    OUTPUT_TEMP_FILE=$2
+    TYPES=$3
+
+    new_requirements_file=$(mktemp)
+    for type in $TYPES
+    do
+        echo "$type"
+        python poetry.py $LOCK_FILE $type >> $new_requirements_file
+    done
+
+    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE    
+}
+
 generate_requirements() {
     #1 Pipfile.lock
     #2 requirements.txt
@@ -103,6 +133,8 @@ generate_requirements() {
     new_requirements_file=$(mktemp)
     if is_pipenv $PIPLOCK_FILE; then
         generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file default
+    elif is_poetry $PIPLOCK_FILE; then
+        generate_requirements_poetry $PIPLOCK_FILE $new_requirements_file default
     else
         show_unknown_format
         exit 2
@@ -126,7 +158,15 @@ generate_requirements_dev() {
     REQUIREMENTS_FILE=$2
     REQUIREMENTS_DEV_FILE=$3
     new_requirements_file=$(mktemp)
-    generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file "default develop"
+
+    if is_pipenv $PIPLOCK_FILE; then
+        generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file "default develop"
+    elif is_poetry $PIPLOCK_FILE; then
+        generate_requirements_poetry $PIPLOCK_FILE $new_requirements_file "default develop"
+    else
+        show_unknown_format
+        exit 2
+    fi
 
     # validate diff
     if diff $REQUIREMENTS_DEV_FILE $new_requirements_file > /dev/null 2>&1; then
