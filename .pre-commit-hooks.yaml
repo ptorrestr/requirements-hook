@@ -4,4 +4,6 @@
     description: 'gen-requirements: Generates requirements file'
     entry: './gen-requirements.sh'
     language: script
-    files: 'Pipfile.lock'
+    files: 
+        - Pipfile.lock
+        - poetry.lock
