@@ -12,14 +12,22 @@ Generate the requirements file from the Pipfile.lock file
 EOF
 }
 
+show_unknown_format() {
+    cat << EOF
+Unknown input file format. Currently only "Pipenv.lock" and "pyproject.toml" are
+supported.
+EOF
+}
+
 is_pipenv() {
     # Check if the input file is a Pipfile.lock
     #1 Input file
     FILE=$1
     if [ "${FILE##*.}" = "lock" ]; then
         true
+    else
+        false
     fi
-    false
 }
 
 get_deps_base() {
@@ -93,7 +101,12 @@ generate_requirements() {
     PIPLOCK_FILE=$1
     REQUIREMENTS_FILE=$2
     new_requirements_file=$(mktemp)
-    generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file default
+    if is_pipenv $PIPLOCK_FILE; then
+        generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file default
+    else
+        show_unknown_format
+        exit 2
+    fi
 
     # validate diff
     if diff $REQUIREMENTS_FILE $new_requirements_file > /dev/null 2>&1; then
@@ -135,6 +148,14 @@ check_command() {
   ( hash $1 2>/dev/null ) ||\
     (echo "ERROR: Command $1 is not available" 1>&2 &&\
     return $FAIL )
+}
+
+check_file() {
+    #1 file
+    echo -n "Checking input file $1..."
+    test -f $1 ||\
+        ( echo "ERROR: File $1 was not found" 1>&2 &&\
+        return $FAIL )
 }
 
 failed() {
@@ -192,6 +213,7 @@ piplock_path=$1
 requirements_path="$(dirname "$piplock_path")"
 requirements_path="$requirements_path/requirements.txt"
 
+check_task check_file $piplock_path
 check_task check_command jq
 check_task check_command diff
 
