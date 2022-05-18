@@ -12,7 +12,18 @@ Generate the requirements file from the Pipfile.lock file
 EOF
 }
 
+is_pipenv() {
+    # Check if the input file is a Pipfile.lock
+    #1 Input file
+    FILE=$1
+    if [ "${FILE##*.}" = "lock" ]; then
+        true
+    fi
+    false
+}
+
 get_deps_base() {
+    # Generate dependencies from Pipfile.lock that are standard
     PIPLOCK_FILE=$1 #1 Pipfile.lock
     OUTPUT_FILE=$2  #2 Output file
     ENV=$3          #3 Environment
@@ -24,6 +35,7 @@ get_deps_base() {
 }
 
 get_deps_git() {
+     # Generate dependencies from Pipfile.lock that are git repos
     PIPLOCK_FILE=$1 #1 Pipfile.lock
     OUTPUT_FILE=$2  #2 Output file
     ENV=$3          #3 Environment
@@ -35,6 +47,7 @@ get_deps_git() {
 }
 
 get_deps_file() {
+    # Generate dependencies from Pipfile.lock that are files
     PIPLOCK_FILE=$1 #1 Pipfile.lock
     OUTPUT_FILE=$2  #2 Output file
     ENV=$3          #3 Environment
@@ -45,23 +58,43 @@ get_deps_file() {
         $PIPLOCK_FILE > $OUTPUT_FILE
 }
 
+generate_requirements_pipenv() {
+    # Generate requirements using pipenv
+    #1 Pipenv.lock file
+    #2 temporal requirments.txt file
+    #3 type (either default or develop)
+    PIPLOCK_FILE=$1
+    OUTPUT_TEMP_FILE=$2
+    TYPES=$3
+
+    new_requirements_file=$(mktemp)
+    # check default environment
+    for type in $TYPES
+    do
+        # check for standard requirements
+        test_file_1=$(mktemp)
+        get_deps_base $PIPLOCK_FILE $test_file_1 $type
+        # check for git+ssh and add them to the end
+        test_file_2=$(mktemp)
+        get_deps_git $PIPLOCK_FILE $test_file_2 $type
+        # check for files and add them to the end
+        test_file_3=$(mktemp)
+        get_deps_file $PIPLOCK_FILE $test_file_3 $type
+        # create new version
+        cat $test_file_1 $test_file_2 $test_file_3 | sort -u >> $new_requirements_file
+    done
+
+    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE    
+}
+
 generate_requirements() {
     #1 Pipfile.lock
     #2 requirements.txt
     PIPLOCK_FILE=$1
     REQUIREMENTS_FILE=$2
-    # check default environment
-    test_file_1=$(mktemp)
-    get_deps_base $PIPLOCK_FILE $test_file_1 default
-    # check for git+ssh and add them to the end
-    test_file_2=$(mktemp)
-    get_deps_git $PIPLOCK_FILE $test_file_2 default
-    # check for git+ssh and add them to the end
-    test_file_3=$(mktemp)
-    get_deps_file $PIPLOCK_FILE $test_file_3 default
-    # create new version
     new_requirements_file=$(mktemp)
-    cat $test_file_1 $test_file_2 $test_file_3 | sort -u > $new_requirements_file
+    generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file default
+
     # validate diff
     if diff $REQUIREMENTS_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_FILE is updated"
@@ -79,30 +112,10 @@ generate_requirements_dev() {
     PIPLOCK_FILE=$1
     REQUIREMENTS_FILE=$2
     REQUIREMENTS_DEV_FILE=$3
-    test_file_dev=$(mktemp)
-    # check develop environment. We actually need to check both!
-    # check default environment
-    test_file_1=$(mktemp)
-    get_deps_base $PIPLOCK_FILE $test_file_1 default
-    # check for git+ssh and add them to the end
-    test_file_2=$(mktemp)
-    get_deps_git $PIPLOCK_FILE $test_file_2 default
-    # check for file
-    test_file_3=$(mktemp)
-    get_deps_file $PIPLOCK_FILE $test_file_3 default
-    # now, develop
-    test_file_4=$(mktemp)
-    get_deps_base $PIPLOCK_FILE $test_file_4 develop
-    # check for develop git+ssh
-    test_file_5=$(mktemp)
-    get_deps_git $PIPLOCK_FILE $test_file_5 develop
-    # check for file
-    test_file_6=$(mktemp)
-    get_deps_file $PIPLOCK_FILE $test_file_6 develop
-    # create new version
     new_requirements_file=$(mktemp)
-    cat $test_file_1 $test_file_2 $test_file_3 $test_file_4 $test_file_5 $test_file_6 \
-        | sort -u > $new_requirements_file
+    generate_requirements_pipenv $PIPLOCK_FILE $new_requirements_file "default develop"
+
+    # validate diff
     if diff $REQUIREMENTS_DEV_FILE $new_requirements_file > /dev/null 2>&1; then
         echo "$REQUIREMENTS_DEV_FILE is updated"
     else
