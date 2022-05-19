@@ -103,7 +103,7 @@ generate_requirements_pipenv() {
         cat $test_file_1 $test_file_2 $test_file_3 | sort -u >> $new_requirements_file
     done
 
-    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE    
+    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE
 }
 
 generate_requirements_poetry() {
@@ -122,7 +122,7 @@ generate_requirements_poetry() {
         python poetry.py $LOCK_FILE $type >> $new_requirements_file
     done
 
-    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE    
+    cat $new_requirements_file | sort -u >> $OUTPUT_TEMP_FILE
 }
 
 generate_requirements() {

@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 from typing import List
 
+
 class RequirementsABC(abc.ABC):
     """Abstract class for processing Lock files.
 
@@ -11,11 +12,12 @@ class RequirementsABC(abc.ABC):
     lock_file : Path
         The path to the lock file.
     """
+
     def __init__(self, lock_file: Path):
         self.lock_file = lock_file
 
-    def generate_requirements(self, requirements_file:Path, categories:List[str]):
-        """Generate a new requirement file and update the current one if they are 
+    def generate_requirements(self, requirements_file: Path, categories: List[str]):
+        """Generate a new requirement file and update the current one if they are
         different.
 
         Parameters
@@ -37,7 +39,7 @@ class RequirementsABC(abc.ABC):
             return True
         return False
 
-    def validate(self, content:str, requirements_file: Path):
+    def validate(self, content: str, requirements_file: Path):
         """Check if the newer requirement file is the sames as the current one using md5
 
         Parameters
@@ -54,12 +56,14 @@ class RequirementsABC(abc.ABC):
         """
         if not requirements_file.exists():
             return True
-        current_ = hashlib.md5(requirements_file.read_text().encode('utf-8')).hexdigest()
-        newer_ = hashlib.md5(content.encode('utf-8')).hexdigest()
+        current_ = hashlib.md5(
+            requirements_file.read_text().encode("utf-8")
+        ).hexdigest()
+        newer_ = hashlib.md5(content.encode("utf-8")).hexdigest()
         return current_ != newer_
 
     @abc.abstractmethod
-    def get_dependencies(self, categories:List[str])->str:
+    def get_dependencies(self, categories: List[str]) -> str:
         """Generate the content of the newer requirement file.
 
         Parameters

@@ -3,12 +3,12 @@ import sys
 from pathlib import Path
 from .poetry import PoetryLock
 
+
 @click.command()
-@click.argument('lock_file',type=click.Path(exists=True, readable=True))
-@click.option('-d', '--dev', is_flag=True)
-def main(lock_file:str, dev:bool):
-    """Generate the requirement file for Poetry or Pipenv lock files.
-    """
+@click.argument("lock_file", type=click.Path(exists=True, readable=True))
+@click.option("-d", "--dev", is_flag=True)
+def main(lock_file: str, dev: bool):
+    """Generate the requirement file for Poetry or Pipenv lock files."""
     lock_file_ = Path(lock_file)
     requirements_file = lock_file_.parent / "requirements.txt"
     lock = PoetryLock(lock_file_)
