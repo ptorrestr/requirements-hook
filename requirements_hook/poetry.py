@@ -9,7 +9,16 @@ SECTION_REGEX = r"\[[a-z.]+\]+"
 MAP_CATEGORY = dict(default="main", develop="dev")
 
 class PoetryLock(RequirementsABC):
-    def get_deps(self):
+    """This is a implementation to generate the requirement files from a poetry.lock
+    file using in Poetry system.
+    """
+
+    def _transform_categories(self, categories:List[str])->List[str]:
+        """ Transform the category names to the schema used by Poetry.
+        """
+        return [MAP_CATEGORY.get(cat, cat) for cat in categories]
+
+    def get_dependencies(self, categories:List[str]):
         """Get dependencies from the lock file.
         """
         content = self.lock_file.read_text()
@@ -31,15 +40,9 @@ class PoetryLock(RequirementsABC):
                 parsed_blocks.append(new_block)
         
         # Print the packages and their versions
+        categories = self._transform_categories(categories)
         with StringIO() as new_requirements:
             for section, block in zip(parsed_sections, parsed_blocks):
-                if block["category"] == category:
+                if block["category"] in categories:
                     new_requirements.write("{}=={}\n".format(block["name"], block["version"]))
-        
-        return new_requirements.getvalue()
-        
-
-if __name__ == "__main__":
-    lock_file = sys.argv[1]
-    category = sys.argv[2]
-    #get_deps(lock_file,  MAP_CATEGORY.get(category, category))
+            return new_requirements.getvalue()
