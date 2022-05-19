@@ -2,6 +2,6 @@
 -   id: gen-requirements
     name: gen-requirements
     description: 'gen-requirements: Generates requirements file'
-    entry: './gen-requirements.sh'
-    language: script
+    entry: 'requirements'
+    language: python
     files: (Pipfile|poetry)\.lock$
