@@ -9,6 +9,7 @@ python = "^3.10"
 click = "^8.1.3"
 
 [tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
 
 [tool.poetry.scripts]
 requirements_hook = "requirements_hook.cli:main"
