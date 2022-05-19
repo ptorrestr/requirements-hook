@@ -7,6 +7,18 @@ from .pipenv import PipenvLock
 
 
 def get_parser(lock_file: Path) -> Union[PoetryLock, PipenvLock]:
+    """Select the proper parser according to the input file name.
+
+    Parameters
+    ----------
+    lock_file : Path
+        The input file.
+
+    Returns
+    -------
+    :class:`PoetryLock` or :class:`PipenvLock`
+        An instance of the proper parser
+    """
     if lock_file.name == "Pipfile.lock":
         return PipenvLock(lock_file=lock_file)
     elif lock_file.name == "poetry.lock":
