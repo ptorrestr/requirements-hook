@@ -1,7 +1,21 @@
+from typing import Union
 import click
 import sys
 from pathlib import Path
 from .poetry import PoetryLock
+from .pipenv import PipenvLock
+
+
+def get_parser(lock_file: Path) -> Union[PoetryLock, PipenvLock]:
+    if lock_file.name == "Pipfile.lock":
+        return PipenvLock(lock_file=lock_file)
+    elif lock_file.name == "poetry.lock":
+        return PoetryLock(lock_file=lock_file)
+    else:
+        raise RuntimeError(
+            "Input file '{}' not supported yet.".format(lock_file.name)
+            + " Only Pipfile and Poetry are supported."
+        )
 
 
 @click.command()
@@ -11,7 +25,7 @@ def main(lock_file: str, dev: bool):
     """Generate the requirement file for Poetry or Pipenv lock files."""
     lock_file_ = Path(lock_file)
     requirements_file = lock_file_.parent / "requirements.txt"
-    lock = PoetryLock(lock_file_)
+    lock = get_parser(lock_file_)
     requirements_file_need_update = 0
     requirements_file_dev_need_update = 0
     if lock.generate_requirements(requirements_file, ["default"]):
